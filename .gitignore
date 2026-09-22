@@ -1,0 +1,10 @@
+# Скомпилированные бинарные файлы и объектные файлы
+build/
+*.o
+*.out
+shell_emulator
+
+# Временные файлы macOS и IDE
+.DS_Store
+.vscode/
+.idea/
