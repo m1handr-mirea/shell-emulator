@@ -4,33 +4,37 @@
 #include <string>
 #include <vector>
 
-// Класс ShellEmulator реализует REPL и парсинг команд (Этап 1)
+struct ShellConfig {
+    std::string vfsPath;     // Физический путь к VFS
+    std::string scriptPath;  // Путь к стартовому скрипту команд
+};
+
 class ShellEmulator {
 public:
-    explicit ShellEmulator(const std::string& vfsName = "default_vfs");
+    explicit ShellEmulator(const ShellConfig& config = ShellConfig());
 
-    // Интерактивный цикл чтения команд
     void run();
-
-    // Выполнение одной команды
+    bool runScript(const std::string& scriptPath);
     bool executeCommand(const std::string& line);
 
-    // Разбор командной строки на аргументы с поддержкой одинарных и двойных кавычек
     static bool parseCommandLine(const std::string& line, 
                                  std::vector<std::string>& tokens, 
                                  std::string& errorMessage);
 
     std::string getVfsName() const { return vfsName_; }
     void setVfsName(const std::string& name) { vfsName_ = name; }
+    const ShellConfig& getConfig() const { return config_; }
 
 private:
-    std::string vfsName_; // Имя VFS для приглашения
-    bool isRunning_;     // Флаг работы REPL
+    ShellConfig config_;
+    std::string vfsName_;
+    bool isRunning_;
 
+    void printDebugConfig() const;
     void printPrompt() const;
     static std::string trim(const std::string& str);
+    static bool isCppComment(const std::string& line);
 
-    // Команды-заглушки этапа 1
     void handleLs(const std::vector<std::string>& args);
     void handleCd(const std::vector<std::string>& args);
     bool handleExit(const std::vector<std::string>& args);

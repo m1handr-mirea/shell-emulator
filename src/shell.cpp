@@ -1,16 +1,31 @@
 #include "shell.h"
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <cctype>
 
-ShellEmulator::ShellEmulator(const std::string& vfsName)
-    : vfsName_(vfsName), isRunning_(false) {}
+ShellEmulator::ShellEmulator(const ShellConfig& config)
+    : config_(config), vfsName_("default_vfs"), isRunning_(false) {}
 
 std::string ShellEmulator::trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) return "";
     size_t last = str.find_last_not_of(" \t\r\n");
     return str.substr(first, (last - first + 1));
+}
+
+bool ShellEmulator::isCppComment(const std::string& line) {
+    std::string trimmed = trim(line);
+    return (trimmed.rfind("//", 0) == 0);
+}
+
+void ShellEmulator::printDebugConfig() const {
+    std::cout << "================== [DEBUG] НАСТРОЙКИ ЭМУЛЯТОРА ==================" << std::endl;
+    std::cout << "  Физический путь к VFS: " 
+              << (config_.vfsPath.empty() ? "(не задан)" : config_.vfsPath) << std::endl;
+    std::cout << "  Путь к стартовому скрипту: " 
+              << (config_.scriptPath.empty() ? "(не задан)" : config_.scriptPath) << std::endl;
+    std::cout << "==================================================================" << std::endl;
 }
 
 void ShellEmulator::printPrompt() const {
@@ -145,11 +160,54 @@ bool ShellEmulator::executeCommand(const std::string& line) {
     return true;
 }
 
+bool ShellEmulator::runScript(const std::string& scriptPath) {
+    std::ifstream file(scriptPath);
+    if (!file.is_open()) {
+        std::cerr << "shell: ошибка открытия стартового скрипта '" << scriptPath << "'" << std::endl;
+        return false;
+    }
+
+    std::cout << "[INFO] Начало выполнения стартового скрипта: " << scriptPath << std::endl;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::string trimmed = trim(line);
+        if (trimmed.empty()) {
+            continue;
+        }
+
+        if (isCppComment(trimmed)) {
+            std::cout << trimmed << std::endl;
+            continue;
+        }
+
+        printPrompt();
+        std::cout << trimmed << std::endl;
+
+        if (!executeCommand(trimmed)) {
+            std::cout << "[INFO] Скрипт вызвал завершение работы (exit)." << std::endl;
+            return false;
+        }
+    }
+
+    std::cout << "[INFO] Стартовый скрипт успешно завершен." << std::endl;
+    return true;
+}
+
 void ShellEmulator::run() {
+    printDebugConfig();
+
+    if (!config_.scriptPath.empty()) {
+        bool continueRepl = runScript(config_.scriptPath);
+        if (!continueRepl) {
+            return;
+        }
+    }
+
     isRunning_ = true;
     std::string inputLine;
 
-    std::cout << "Эмулятор оболочки ОС запущен. Введите команду или 'exit' для выхода." << std::endl;
+    std::cout << "Эмулятор оболочки ОС готов к работе. Введите команду или 'exit'." << std::endl;
 
     while (isRunning_) {
         printPrompt();
