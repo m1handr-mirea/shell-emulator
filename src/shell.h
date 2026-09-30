@@ -3,6 +3,8 @@
 
 #include <string>
 #include <vector>
+#include <memory>
+#include "vfs.h"
 
 struct ShellConfig {
     std::string vfsPath;     // Физический путь к VFS
@@ -24,10 +26,12 @@ public:
     std::string getVfsName() const { return vfsName_; }
     void setVfsName(const std::string& name) { vfsName_ = name; }
     const ShellConfig& getConfig() const { return config_; }
+    VirtualFileSystem& getVfs() { return vfs_; }
 
 private:
     ShellConfig config_;
     std::string vfsName_;
+    VirtualFileSystem vfs_;
     bool isRunning_;
 
     void printDebugConfig() const;
@@ -35,6 +39,7 @@ private:
     static std::string trim(const std::string& str);
     static bool isCppComment(const std::string& line);
 
+    void handleVfsInfo(const std::vector<std::string>& args);
     void handleLs(const std::vector<std::string>& args);
     void handleCd(const std::vector<std::string>& args);
     bool handleExit(const std::vector<std::string>& args);

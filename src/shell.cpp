@@ -90,6 +90,24 @@ bool ShellEmulator::parseCommandLine(const std::string& line,
     return true;
 }
 
+void ShellEmulator::handleVfsInfo(const std::vector<std::string>& args) {
+    if (!args.empty()) {
+        std::cerr << "vfs-info: команда не принимает аргументов" << std::endl;
+        return;
+    }
+
+    std::cout << "--- Информация о VFS ---" << std::endl;
+    std::cout << "  Имя VFS: " << vfs_.getName() << std::endl;
+    std::string hash = vfs_.getSha256();
+    if (hash.empty()) {
+        std::cout << "  SHA-256 данных: (VFS не была загружена из внешнего файла, используется образ по умолчанию)" << std::endl;
+    } else {
+        std::cout << "  SHA-256 данных: " << hash << std::endl;
+    }
+    std::cout << "  Всего файлов и каталогов в памяти: " << vfs_.getTotalNodes() << std::endl;
+    std::cout << "  Текущий рабочий каталог: " << vfs_.getCurrentPath() << std::endl;
+}
+
 void ShellEmulator::handleLs(const std::vector<std::string>& args) {
     std::cout << "[STUB ls] Вызвана команда ls. ";
     if (args.empty()) {
@@ -148,13 +166,15 @@ bool ShellEmulator::executeCommand(const std::string& line) {
 
     if (command == "exit") {
         return handleExit(args);
+    } else if (command == "vfs-info") {
+        handleVfsInfo(args);
     } else if (command == "ls") {
         handleLs(args);
     } else if (command == "cd") {
         handleCd(args);
     } else {
         std::cerr << "shell: неизвестная команда: '" << command 
-                  << "'. Доступные команды: ls, cd, exit." << std::endl;
+                  << "'. Доступные команды: ls, cd, vfs-info, exit." << std::endl;
     }
 
     return true;
@@ -196,6 +216,17 @@ bool ShellEmulator::runScript(const std::string& scriptPath) {
 
 void ShellEmulator::run() {
     printDebugConfig();
+
+    if (!config_.vfsPath.empty()) {
+        std::string err;
+        if (!vfs_.loadFromJsonFile(config_.vfsPath, err)) {
+            std::cerr << "shell: " << err << std::endl;
+        } else {
+            vfsName_ = vfs_.getName();
+            std::cout << "[INFO] Виртуальная файловая система '" << vfsName_ 
+                      << "' успешно загружена в память." << std::endl;
+        }
+    }
 
     if (!config_.scriptPath.empty()) {
         bool continueRepl = runScript(config_.scriptPath);

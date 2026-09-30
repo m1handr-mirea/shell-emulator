@@ -1,0 +1,61 @@
+{
+  "name": "deep_vfs",
+  "type": "dir",
+  "children": {
+    "root_file.txt": {
+      "type": "file",
+      "encoding": "utf-8",
+      "content": "Файл в корневом каталоге VFS."
+    },
+    "home": {
+      "type": "dir",
+      "children": {
+        "student": {
+          "type": "dir",
+          "children": {
+            "projects": {
+              "type": "dir",
+              "children": {
+                "shell_emulator": {
+                  "type": "dir",
+                  "children": {
+                    "code.cpp": {
+                      "type": "file",
+                      "encoding": "utf-8",
+                      "content": "#include <iostream>\nint main() { return 0; }"
+                    },
+                    "blob.dat": {
+                      "type": "file",
+                      "encoding": "base64",
+                      "content": "SGVsbG8gZnJvbSBhIGRlZXAgbGV2ZWwgZmlsZSE="
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "var": {
+      "type": "dir",
+      "children": {
+        "log": {
+          "type": "dir",
+          "children": {
+            "service": {
+              "type": "dir",
+              "children": {
+                "app.log": {
+                  "type": "file",
+                  "encoding": "utf-8",
+                  "content": "2026-09-30 12:00:00 [INFO] Service started successfully\n2026-09-30 12:05:00 [INFO] Heartbeat OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

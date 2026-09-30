@@ -1,0 +1,41 @@
+{
+  "name": "multi_vfs",
+  "type": "dir",
+  "children": {
+    "readme.txt": {
+      "type": "file",
+      "encoding": "utf-8",
+      "content": "Это файловая система с несколькими файлами и папками."
+    },
+    "binary_secret.bin": {
+      "type": "file",
+      "encoding": "base64",
+      "content": "U2VjcmV0IEJpbmFyeSBEYXRhIGZvciBTaGVsbCBFbXVsYXRvciE="
+    },
+    "etc": {
+      "type": "dir",
+      "children": {
+        "hosts": {
+          "type": "file",
+          "encoding": "utf-8",
+          "content": "127.0.0.1 localhost\n::1 localhost"
+        },
+        "resolv.conf": {
+          "type": "file",
+          "encoding": "utf-8",
+          "content": "nameserver 8.8.8.8\nnameserver 1.1.1.1"
+        }
+      }
+    },
+    "bin": {
+      "type": "dir",
+      "children": {
+        "hello.sh": {
+          "type": "file",
+          "encoding": "utf-8",
+          "content": "#!/bin/sh\necho 'Hello from virtual bin!'"
+        }
+      }
+    }
+  }
+}

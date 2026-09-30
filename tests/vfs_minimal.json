@@ -1,0 +1,11 @@
+{
+  "name": "minimal_vfs",
+  "type": "dir",
+  "children": {
+    "welcome.txt": {
+      "type": "file",
+      "encoding": "utf-8",
+      "content": "Добро пожаловать в минимальную VFS!"
+    }
+  }
+}
