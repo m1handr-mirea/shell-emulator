@@ -29,7 +29,7 @@ void ShellEmulator::printDebugConfig() const {
 }
 
 void ShellEmulator::printPrompt() const {
-    std::cout << "[" << vfsName_ << "]$ " << std::flush;
+    std::cout << "[" << vfsName_ << ":" << vfs_.getCurrentPath() << "]$ " << std::flush;
 }
 
 bool ShellEmulator::parseCommandLine(const std::string& line, 
@@ -109,15 +109,56 @@ void ShellEmulator::handleVfsInfo(const std::vector<std::string>& args) {
 }
 
 void ShellEmulator::handleLs(const std::vector<std::string>& args) {
-    std::cout << "[STUB ls] Вызвана команда ls. ";
-    if (args.empty()) {
-        std::cout << "Аргументы отсутствуют." << std::endl;
-    } else {
-        std::cout << "Аргументы (" << args.size() << "): ";
-        for (size_t i = 0; i < args.size(); ++i) {
-            std::cout << "[" << args[i] << "]" << (i + 1 < args.size() ? ", " : "");
+    std::vector<std::string> paths;
+    for (const auto& arg : args) {
+        if (!arg.empty() && arg[0] != '-') {
+            paths.push_back(arg);
+        }
+    }
+
+    if (paths.empty()) {
+        auto currentDir = vfs_.getCurrentDir();
+        if (!currentDir) return;
+
+        for (const auto& entry : currentDir->children) {
+            if (entry.second->isDirectory()) {
+                std::cout << entry.first << "/  ";
+            } else {
+                std::cout << entry.first << "  ";
+            }
         }
         std::cout << std::endl;
+        return;
+    }
+
+    for (size_t i = 0; i < paths.size(); ++i) {
+        const std::string& path = paths[i];
+        if (paths.size() > 1) {
+            std::cout << path << ":" << std::endl;
+        }
+
+        auto node = vfs_.resolveNode(path);
+        if (!node) {
+            std::cerr << "ls: cannot access '" << path << "': No such file or directory" << std::endl;
+            continue;
+        }
+
+        if (node->isDirectory()) {
+            for (const auto& entry : node->children) {
+                if (entry.second->isDirectory()) {
+                    std::cout << entry.first << "/  ";
+                } else {
+                    std::cout << entry.first << "  ";
+                }
+            }
+            std::cout << std::endl;
+        } else {
+            std::cout << node->name << std::endl;
+        }
+
+        if (paths.size() > 1 && i + 1 < paths.size()) {
+            std::cout << std::endl;
+        }
     }
 }
 
@@ -127,11 +168,107 @@ void ShellEmulator::handleCd(const std::vector<std::string>& args) {
         return;
     }
 
-    std::cout << "[STUB cd] Вызвана команда cd. ";
+    std::string targetPath = args.empty() ? "/" : args[0];
+    std::string errorMsg;
+    if (!vfs_.changeDirectory(targetPath, errorMsg)) {
+        std::cerr << errorMsg << std::endl;
+    }
+}
+
+void ShellEmulator::handleEcho(const std::vector<std::string>& args) {
+    for (size_t i = 0; i < args.size(); ++i) {
+        std::cout << args[i] << (i + 1 < args.size() ? " " : "");
+    }
+    std::cout << std::endl;
+}
+
+void ShellEmulator::handleCat(const std::vector<std::string>& args) {
     if (args.empty()) {
-        std::cout << "Переход в домашнюю директорию (по умолчанию /)" << std::endl;
-    } else {
-        std::cout << "Целевой путь: [" << args[0] << "]" << std::endl;
+        std::cerr << "cat: пропущен операнд (укажите имя файла)" << std::endl;
+        return;
+    }
+
+    for (const auto& filePath : args) {
+        auto node = vfs_.resolveNode(filePath);
+        if (!node) {
+            std::cerr << "cat: " << filePath << ": No such file or directory" << std::endl;
+            continue;
+        }
+
+        if (node->isDirectory()) {
+            std::cerr << "cat: " << filePath << ": Is a directory" << std::endl;
+            continue;
+        }
+
+        std::cout << node->content;
+        if (!node->content.empty() && node->content.back() != '\n') {
+            std::cout << std::endl;
+        }
+    }
+}
+
+void ShellEmulator::handleTail(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        std::cerr << "tail: пропущен операнд (укажите имя файла)" << std::endl;
+        return;
+    }
+
+    int linesCount = 10;
+    std::string targetFile;
+
+    for (size_t i = 0; i < args.size(); ++i) {
+        const std::string& arg = args[i];
+        if (arg == "-n" && i + 1 < args.size()) {
+            try {
+                linesCount = std::stoi(args[++i]);
+                if (linesCount < 0) linesCount = 10;
+            } catch (...) {
+                std::cerr << "tail: неверное количество строк: '" << args[i] << "'" << std::endl;
+                return;
+            }
+        } else if (arg.rfind("-n", 0) == 0 && arg.size() > 2) {
+            try {
+                linesCount = std::stoi(arg.substr(2));
+                if (linesCount < 0) linesCount = 10;
+            } catch (...) {
+                std::cerr << "tail: неверное количество строк: '" << arg << "'" << std::endl;
+                return;
+            }
+        } else {
+            targetFile = arg;
+        }
+    }
+
+    if (targetFile.empty()) {
+        std::cerr << "tail: пропущен операнд (укажите имя файла)" << std::endl;
+        return;
+    }
+
+    auto node = vfs_.resolveNode(targetFile);
+    if (!node) {
+        std::cerr << "tail: cannot open '" << targetFile << "' for reading: No such file or directory" << std::endl;
+        return;
+    }
+
+    if (node->isDirectory()) {
+        std::cerr << "tail: error reading '" << targetFile << "': Is a directory" << std::endl;
+        return;
+    }
+
+    std::vector<std::string> lines;
+    std::stringstream ss(node->content);
+    std::string line;
+    while (std::getline(ss, line)) {
+        lines.push_back(line);
+    }
+
+    size_t start = 0;
+    if (lines.size() > static_cast<size_t>(linesCount)) {
+        start = lines.size() - static_cast<size_t>(linesCount);
+    }
+
+    for (size_t i = start; i < lines.size(); ++i) {
+        std::cout << lines[i] << std::endl;
     }
 }
 
@@ -172,9 +309,15 @@ bool ShellEmulator::executeCommand(const std::string& line) {
         handleLs(args);
     } else if (command == "cd") {
         handleCd(args);
+    } else if (command == "echo") {
+        handleEcho(args);
+    } else if (command == "cat") {
+        handleCat(args);
+    } else if (command == "tail") {
+        handleTail(args);
     } else {
         std::cerr << "shell: неизвестная команда: '" << command 
-                  << "'. Доступные команды: ls, cd, vfs-info, exit." << std::endl;
+                  << "'. Доступные команды: ls, cd, echo, cat, tail, vfs-info, exit." << std::endl;
     }
 
     return true;

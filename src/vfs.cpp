@@ -38,7 +38,7 @@ void VirtualFileSystem::buildNodeFromJson(const JsonValue& jsonVal,
 
     if (typeStr == "dir") {
         auto dirNode = std::make_shared<VfsNode>(nodeName, VfsNodeType::Directory);
-        dirNode->parent = parentNode.get();
+        dirNode->parent = parentNode;
         if (parentNode) {
             parentNode->children[nodeName] = dirNode;
         }
@@ -51,7 +51,7 @@ void VirtualFileSystem::buildNodeFromJson(const JsonValue& jsonVal,
         }
     } else {
         auto fileNode = std::make_shared<VfsNode>(nodeName, VfsNodeType::File);
-        fileNode->parent = parentNode.get();
+        fileNode->parent = parentNode;
 
         std::string rawContent = "";
         if (jsonVal.contains("content") && jsonVal["content"].isString()) {
@@ -127,10 +127,10 @@ std::string VirtualFileSystem::getCurrentPath() const {
     }
 
     std::vector<std::string> parts;
-    VfsNode* curr = currentDir_.get();
-    while (curr && curr != root_.get()) {
+    auto curr = currentDir_;
+    while (curr && curr != root_) {
         parts.push_back(curr->name);
-        curr = curr->parent;
+        curr = curr->parent.lock();
     }
 
     std::string fullPath = "";
@@ -152,11 +152,9 @@ std::shared_ptr<VfsNode> VirtualFileSystem::resolveNode(const std::string& path)
             continue;
         }
         if (segment == "..") {
-            if (curr->parent) {
-                auto parentPtr = (curr->parent == root_.get()) ? root_ : resolveNode(getCurrentPath() + "/..");
-                if (parentPtr) {
-                    curr = parentPtr;
-                }
+            auto parent = curr->parent.lock();
+            if (parent) {
+                curr = parent;
             }
             continue;
         }

@@ -42,6 +42,9 @@ private:
     void handleVfsInfo(const std::vector<std::string>& args);
     void handleLs(const std::vector<std::string>& args);
     void handleCd(const std::vector<std::string>& args);
+    void handleEcho(const std::vector<std::string>& args);
+    void handleCat(const std::vector<std::string>& args);
+    void handleTail(const std::vector<std::string>& args);
     bool handleExit(const std::vector<std::string>& args);
 };
 

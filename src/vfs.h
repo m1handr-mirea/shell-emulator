@@ -15,11 +15,11 @@ struct VfsNode {
     std::string name;
     VfsNodeType type;
     std::string content;
-    VfsNode* parent = nullptr;
-    std::map<std::string, std::shared_ptr<VfsNode>> children;
+    std::weak_ptr<VfsNode> parent;                            // Слабый указатель на родителя (без циклических ссылок)
+    std::map<std::string, std::shared_ptr<VfsNode>> children; // Дочерние узлы
 
     VfsNode(const std::string& nodeName, VfsNodeType nodeType)
-        : name(nodeName), type(nodeType), parent(nullptr) {}
+        : name(nodeName), type(nodeType) {}
 
     bool isDirectory() const { return type == VfsNodeType::Directory; }
     bool isFile() const { return type == VfsNodeType::File; }
