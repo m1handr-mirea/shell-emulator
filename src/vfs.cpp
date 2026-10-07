@@ -193,3 +193,162 @@ bool VirtualFileSystem::changeDirectory(const std::string& path, std::string& er
     currentDir_ = target;
     return true;
 }
+
+bool VirtualFileSystem::makeDirectory(const std::string& path, bool createParents, std::string& errorMsg) {
+    if (path.empty()) {
+        errorMsg = "mkdir: missing operand";
+        return false;
+    }
+
+    std::vector<std::string> segments;
+    std::stringstream ss(path);
+    std::string seg;
+    while (std::getline(ss, seg, '/')) {
+        if (!seg.empty()) {
+            segments.push_back(seg);
+        }
+    }
+
+    if (segments.empty()) {
+        if (path[0] == '/') {
+            if (createParents) return true;
+            errorMsg = "mkdir: cannot create directory '/': File exists";
+            return false;
+        }
+        errorMsg = "mkdir: missing operand";
+        return false;
+    }
+
+    std::shared_ptr<VfsNode> curr = (path[0] == '/') ? root_ : currentDir_;
+
+    for (size_t i = 0; i < segments.size(); ++i) {
+        const std::string& name = segments[i];
+        bool isLast = (i == segments.size() - 1);
+
+        if (name == ".") {
+            continue;
+        }
+        if (name == "..") {
+            auto parent = curr->parent.lock();
+            if (parent) curr = parent;
+            continue;
+        }
+
+        if (!curr->isDirectory()) {
+            errorMsg = "mkdir: cannot create directory '" + path + "': Not a directory";
+            return false;
+        }
+
+        auto it = curr->children.find(name);
+        if (it != curr->children.end()) {
+            if (isLast) {
+                if (createParents && it->second->isDirectory()) return true;
+                errorMsg = "mkdir: cannot create directory '" + path + "': File exists";
+                return false;
+            } else {
+                if (!it->second->isDirectory()) {
+                    errorMsg = "mkdir: cannot create directory '" + path + "': Not a directory";
+                    return false;
+                }
+                curr = it->second;
+            }
+        } else {
+            if (!isLast && !createParents) {
+                errorMsg = "mkdir: cannot create directory '" + path + "': No such file or directory";
+                return false;
+            }
+
+            auto newDir = std::make_shared<VfsNode>(name, VfsNodeType::Directory);
+            newDir->parent = curr;
+            curr->children[name] = newDir;
+            curr = newDir;
+        }
+    }
+
+    recalculateNodesCount();
+    return true;
+}
+
+bool VirtualFileSystem::moveNode(const std::string& srcPath, const std::string& destPath, std::string& errorMsg) {
+    if (srcPath.empty() || destPath.empty()) {
+        errorMsg = "mv: missing file operand";
+        return false;
+    }
+
+    auto srcNode = resolveNode(srcPath);
+    if (!srcNode) {
+        errorMsg = "mv: cannot stat '" + srcPath + "': No such file or directory";
+        return false;
+    }
+
+    if (srcNode == root_) {
+        errorMsg = "mv: cannot move root directory";
+        return false;
+    }
+
+    auto srcOldParent = srcNode->parent.lock();
+    if (!srcOldParent) {
+        errorMsg = "mv: source node has no parent";
+        return false;
+    }
+
+    auto destNode = resolveNode(destPath);
+    std::shared_ptr<VfsNode> targetParent = nullptr;
+    std::string targetName = "";
+
+    if (destNode) {
+        if (destNode->isDirectory()) {
+            targetParent = destNode;
+            targetName = srcNode->name;
+        } else {
+            if (srcNode->isDirectory()) {
+                errorMsg = "mv: cannot overwrite non-directory '" + destPath + "' with directory '" + srcPath + "'";
+                return false;
+            }
+            targetParent = destNode->parent.lock();
+            targetName = destNode->name;
+        }
+    } else {
+        size_t lastSlash = destPath.find_last_of('/');
+        if (lastSlash != std::string::npos) {
+            std::string parentPath = destPath.substr(0, lastSlash);
+            if (parentPath.empty()) parentPath = "/";
+            targetName = destPath.substr(lastSlash + 1);
+            targetParent = resolveNode(parentPath);
+        } else {
+            targetParent = currentDir_;
+            targetName = destPath;
+        }
+
+        if (!targetParent || !targetParent->isDirectory()) {
+            errorMsg = "mv: cannot move to '" + destPath + "': No such file or directory";
+            return false;
+        }
+    }
+
+    if (!targetParent) {
+        errorMsg = "mv: invalid destination";
+        return false;
+    }
+
+    if (srcNode->isDirectory()) {
+        auto check = targetParent;
+        while (check) {
+            if (check == srcNode) {
+                errorMsg = "mv: cannot move '" + srcPath + "' to a subdirectory of itself";
+                return false;
+            }
+            check = check->parent.lock();
+        }
+    }
+
+    srcOldParent->children.erase(srcNode->name);
+
+    srcNode->name = targetName;
+    srcNode->parent = targetParent;
+
+    targetParent->children[targetName] = srcNode;
+
+    recalculateNodesCount();
+    return true;
+}

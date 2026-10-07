@@ -272,6 +272,105 @@ void ShellEmulator::handleTail(const std::vector<std::string>& args) {
     }
 }
 
+void ShellEmulator::handleMkdir(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        std::cerr << "mkdir: пропущен операнд (укажите путь к каталогу)" << std::endl;
+        return;
+    }
+
+    bool createParents = false;
+    std::vector<std::string> paths;
+
+    for (const auto& arg : args) {
+        if (arg == "-p") {
+            createParents = true;
+        } else if (arg.rfind("-", 0) == 0) {
+            std::cerr << "mkdir: неизвестный ключ '" << arg << "'" << std::endl;
+            return;
+        } else {
+            paths.push_back(arg);
+        }
+    }
+
+    if (paths.empty()) {
+        std::cerr << "mkdir: пропущен операнд" << std::endl;
+        return;
+    }
+
+    for (const auto& path : paths) {
+        std::string err;
+        if (!vfs_.makeDirectory(path, createParents, err)) {
+            std::cerr << err << std::endl;
+        }
+    }
+}
+
+void ShellEmulator::handleMv(const std::vector<std::string>& args) {
+    if (args.size() < 2) {
+        if (args.empty()) {
+            std::cerr << "mv: пропущен операнд файла" << std::endl;
+        } else {
+            std::cerr << "mv: пропущен целевой операнд после '" << args[0] << "'" << std::endl;
+        }
+        return;
+    }
+
+    if (args.size() > 2) {
+        std::cerr << "mv: перемещение нескольких файлов за раз не поддерживается" << std::endl;
+        return;
+    }
+
+    const std::string& src = args[0];
+    const std::string& dest = args[1];
+
+    std::string err;
+    if (!vfs_.moveNode(src, dest, err)) {
+        std::cerr << err << std::endl;
+    }
+}
+
+void ShellEmulator::handleHelp(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        std::cout << "Доступные команды эмулятора:\n"
+                  << "  ls [ПУТЬ...]          Вывести список файлов и папок\n"
+                  << "  cd [ПУТЬ]             Сменить текущий рабочий каталог\n"
+                  << "  echo [АРГУМЕНТЫ...]   Вывести строку в консоль\n"
+                  << "  cat <ФАЙЛ...>         Вывести содержимое файлов\n"
+                  << "  tail [-n N] <ФАЙЛ>    Вывести последние N строк файла (по умолчанию 10)\n"
+                  << "  mkdir [-p] <КАТАЛОГ>  Создать каталог в памяти VFS (-p для промежуточных)\n"
+                  << "  mv <ИСТОЧНИК> <ЦЕЛЬ>  Переместить или переименовать файл/папку в VFS\n"
+                  << "  vfs-info              Информация о VFS (имя, SHA-256, число объектов)\n"
+                  << "  help [КОМАНДА]        Показать справку по командам\n"
+                  << "  exit                  Завершить работу эмулятора" << std::endl;
+        return;
+    }
+
+    const std::string& cmd = args[0];
+    if (cmd == "ls") {
+        std::cout << "ls [ПУТЬ...]\n  Выводит список файлов и директорий. Директории помечаются '/'.\n";
+    } else if (cmd == "cd") {
+        std::cout << "cd [ПУТЬ]\n  Переходит в указанную директорию. Поддерживает '.', '..', '/'.\n";
+    } else if (cmd == "echo") {
+        std::cout << "echo [АРГУМЕНТЫ...]\n  Печатает аргументы через пробел с сохранением кавычек.\n";
+    } else if (cmd == "cat") {
+        std::cout << "cat <ФАЙЛ...>\n  Выводит текстовое или декодированное Base64 содержимое файлов.\n";
+    } else if (cmd == "tail") {
+        std::cout << "tail [-n КОЛИЧЕСТВО] <ФАЙЛ>\n  Выводит последние строки файла (по умолчанию 10).\n";
+    } else if (cmd == "mkdir") {
+        std::cout << "mkdir [-p] <ПУТЬ...>\n  Создает каталог в памяти VFS. Флаг -p создает промежуточные каталоги.\n";
+    } else if (cmd == "mv") {
+        std::cout << "mv <ИСТОЧНИК> <НАЗНАЧЕНИЕ>\n  Перемещает или переименовывает файлы и каталоги в памяти VFS.\n";
+    } else if (cmd == "vfs-info") {
+        std::cout << "vfs-info\n  Выводит имя VFS, SHA-256 хеш данных и общее количество узлов в памяти.\n";
+    } else if (cmd == "help") {
+        std::cout << "help [КОМАНДА]\n  Отображает список всех команд или справку по заданной команде.\n";
+    } else if (cmd == "exit") {
+        std::cout << "exit\n  Завершает работу эмулятора командной строки.\n";
+    } else {
+        std::cerr << "help: неизвестная команда '" << cmd << "'. Введите help для списка всех команд." << std::endl;
+    }
+}
+
 bool ShellEmulator::handleExit(const std::vector<std::string>& args) {
     if (args.size() > 1) {
         std::cerr << "exit: слишком много аргументов" << std::endl;
@@ -315,9 +414,15 @@ bool ShellEmulator::executeCommand(const std::string& line) {
         handleCat(args);
     } else if (command == "tail") {
         handleTail(args);
+    } else if (command == "mkdir") {
+        handleMkdir(args);
+    } else if (command == "mv") {
+        handleMv(args);
+    } else if (command == "help") {
+        handleHelp(args);
     } else {
         std::cerr << "shell: неизвестная команда: '" << command 
-                  << "'. Доступные команды: ls, cd, echo, cat, tail, vfs-info, exit." << std::endl;
+                  << "'. Введите help для списка доступных команд." << std::endl;
     }
 
     return true;
@@ -381,7 +486,7 @@ void ShellEmulator::run() {
     isRunning_ = true;
     std::string inputLine;
 
-    std::cout << "Эмулятор оболочки ОС готов к работе. Введите команду или 'exit'." << std::endl;
+    std::cout << "Эмулятор оболочки ОС готов к работе. Введите 'help' для справки или 'exit' для выхода." << std::endl;
 
     while (isRunning_) {
         printPrompt();

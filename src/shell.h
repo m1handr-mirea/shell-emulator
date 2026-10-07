@@ -45,6 +45,9 @@ private:
     void handleEcho(const std::vector<std::string>& args);
     void handleCat(const std::vector<std::string>& args);
     void handleTail(const std::vector<std::string>& args);
+    void handleMkdir(const std::vector<std::string>& args);
+    void handleMv(const std::vector<std::string>& args);
+    void handleHelp(const std::vector<std::string>& args);
     bool handleExit(const std::vector<std::string>& args);
 };
 

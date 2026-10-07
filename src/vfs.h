@@ -15,8 +15,8 @@ struct VfsNode {
     std::string name;
     VfsNodeType type;
     std::string content;
-    std::weak_ptr<VfsNode> parent;                            // Слабый указатель на родителя (без циклических ссылок)
-    std::map<std::string, std::shared_ptr<VfsNode>> children; // Дочерние узлы
+    std::weak_ptr<VfsNode> parent;
+    std::map<std::string, std::shared_ptr<VfsNode>> children;
 
     VfsNode(const std::string& nodeName, VfsNodeType nodeType)
         : name(nodeName), type(nodeType) {}
@@ -42,6 +42,13 @@ public:
     std::shared_ptr<VfsNode> getRoot() const { return root_; }
 
     bool changeDirectory(const std::string& path, std::string& errorMsg);
+
+    // Создание каталогов в памяти (Этап 5: mkdir)
+    bool makeDirectory(const std::string& path, bool createParents, std::string& errorMsg);
+
+    // Перемещение и переименование в памяти (Этап 5: mv)
+    bool moveNode(const std::string& srcPath, const std::string& destPath, std::string& errorMsg);
+
     void recalculateNodesCount();
 
 private:
