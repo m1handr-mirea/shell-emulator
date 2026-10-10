@@ -100,7 +100,8 @@ void ShellEmulator::handleVfsInfo(const std::vector<std::string>& args) {
     std::cout << "  Имя VFS: " << vfs_.getName() << std::endl;
     std::string hash = vfs_.getSha256();
     if (hash.empty()) {
-        std::cout << "  SHA-256 данных: (VFS не была загружена из внешнего файла, используется образ по умолчанию)" << std::endl;
+        std::cout << "  SHA-256 данных: (VFS не была загружена из внешнего файла, "
+                  << "используется образ по умолчанию)" << std::endl;
     } else {
         std::cout << "  SHA-256 данных: " << hash << std::endl;
     }

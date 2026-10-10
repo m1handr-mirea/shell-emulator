@@ -9,8 +9,10 @@ JsonValue::JsonValue(bool b) : type_(Type::Boolean), boolVal_(b), numVal_(0.0) {
 JsonValue::JsonValue(double d) : type_(Type::Number), boolVal_(false), numVal_(d) {}
 JsonValue::JsonValue(const std::string& s) : type_(Type::String), boolVal_(false), numVal_(0.0), strVal_(s) {}
 JsonValue::JsonValue(const char* s) : type_(Type::String), boolVal_(false), numVal_(0.0), strVal_(s ? s : "") {}
-JsonValue::JsonValue(const std::vector<JsonValue>& arr) : type_(Type::Array), boolVal_(false), numVal_(0.0), arrVal_(arr) {}
-JsonValue::JsonValue(const std::map<std::string, JsonValue>& obj) : type_(Type::Object), boolVal_(false), numVal_(0.0), objVal_(obj) {}
+JsonValue::JsonValue(const std::vector<JsonValue>& arr)
+    : type_(Type::Array), boolVal_(false), numVal_(0.0), arrVal_(arr) {}
+JsonValue::JsonValue(const std::map<std::string, JsonValue>& obj)
+    : type_(Type::Object), boolVal_(false), numVal_(0.0), objVal_(obj) {}
 
 bool JsonValue::asBool() const {
     if (!isBool()) throw std::runtime_error("JsonValue is not a boolean");
